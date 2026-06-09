@@ -445,6 +445,17 @@ std::optional<std::string> printExprValue(const Expr *E,
       T->isFunctionReferenceType() || T->isVoidType())
     return std::nullopt;
 
+  // If the expression is a reference to a variable whose initializer is
+  // value-dependent, EvaluateAsRValue may crash. Skip evaluation in this case
+  // as the value cannot be meaningfully determined.
+  if (const auto *DRE = llvm::dyn_cast<DeclRefExpr>(E)) {
+      if (const auto *VD = llvm::dyn_cast<VarDecl>(DRE->getDecl())) {
+          const Expr *Init = VD->getAnyInitializer();
+          if (Init && Init->isValueDependent())
+              return std::nullopt;
+      }
+  }
+
   Expr::EvalResult Constant;
   // Attempt to evaluate. If expr is dependent, evaluation crashes!
   if (E->isValueDependent() || !E->EvaluateAsRValue(Constant, Ctx) ||

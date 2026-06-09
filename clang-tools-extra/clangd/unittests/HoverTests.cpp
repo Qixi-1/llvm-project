@@ -4710,6 +4710,27 @@ TEST(Hover, ForwardStructNoCrash) {
   EXPECT_EQ(*HI->Value, "&bar");
 }
 
+TEST(Hover, NoCrashValueDependentInit) {
+  Annotations T(R"cpp(
+    // error-ok
+    struct A { virtual int foo(); };
+    void baz(int);
+    template <typename T>
+    void bar(T x) {
+      A &b = *x;
+      baz(bar.foo());
+    }
+    void foo() {
+      A &x = *^x;
+      bar(&x);
+    }
+  )cpp");
+  TestTU TU = TestTU::withCode(T.code());
+  auto AST = TU.build();
+  // Should not crash.
+  getHover(AST, T.point(), format::getLLVMStyle(), nullptr);
+}
+
 TEST(Hover, FunctionParameterDefaulValueNotEvaluatedOnInvalidDecls) {
   struct {
     const char *const Code;
